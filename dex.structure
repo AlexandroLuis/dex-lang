@@ -1,34 +1,53 @@
 dex-lang/
-├── src/                    # Core source code
-│   ├── lexer/              # Tokenizer logic
+├── src/
+│   ├── lexer/
 │   │   ├── lexer.h
 │   │   └── lexer.cpp
-│   ├── parser/             # Parser and AST logic
+│   ├── parser/
 │   │   ├── ast.h
 │   │   ├── parser.h
 │   │   └── parser.cpp
-│   ├── interpreter/        # Dex interpreter runtime
+│   ├── interpreter/
 │   │   ├── interpreter.h
 │   │   └── interpreter.cpp
-│   ├── runtime/            # Built-in Dex objects (e.g., WebServer)
-│   │   ├── webserver.h
-│   │   └── webserver.cpp
-│   ├── main.cpp            # CLI entry point (dex run file.d)
-│   └── utils.h             # Shared utilities
+│   ├── runtime/
+│   │   ├── database.cpp
+│   │   ├── database.h
+│   │   ├── dex_database_binding.cpp       # Dex DB bindings
+│   │   ├── env_binding.cpp                # getEnv binding
+│   │   ├── fileio.cpp                     # file read/write helpers
+│   │   ├── fileio.h                       # fileio header
+│   │   ├── json_utils.cpp                 # JSON helper (nlohmann)
+│   │   ├── json_utils.h                   # JSON header
+│   │   ├── csv_utils.cpp                  # CSV helper
+│   │   ├── csv_utils.h                    # CSV header
+│   │   ├── fileio_binding.cpp             # Bindings for fileio/json/csv
+│   │   ├── mysql_database.cpp
+│   │   ├── mysql_database.h
+│   │   ├── postgres_database.cpp
+│   │   ├── postgres_database.h
+│   │   ├── sqlite_database.cpp
+│   │   ├── sqlite_database.h
+│   │   ├── webserver.cpp
+│   │   └── webserver.h
+│   ├── main.cpp                          # load .env + register bindings
+│   └── utils.h
 │
-├── include/                # Public headers (if separated)
-│   └── dex.h               # Combined Dex API header
+├── examples/
+│   ├── db_example.d                     # Existing DB example
+│   ├── hello_web.d                      # Existing web server example
+│   └── db_with_env.d                    # example using getEnv() from .env
 │
-├── examples/               # Dex example files
-│   ├── hello_web.d         # Basic web server demo
-│   ├── routing.d           # Multiple route example
-│   └── control_structs.d   # if/while usage
-│
-├── tests/                  # Unit or integration tests
+├── tests/
 │   ├── lexer_test.cpp
 │   ├── parser_test.cpp
 │   └── interpreter_test.cpp
 │
-├── CMakeLists.txt          # CMake build configuration
-├── README.md               # Project overview
-└── LICENSE                 # License file
+├── external/
+│   └── dotenv-cpp/                      # NEW: dotenv-cpp lib source and headers
+│       ├── dotenv.h
+│       └── dotenv.cpp
+│
+├── CMakeLists.txt                      # Updated to build and link dotenv & new runtime files
+├── README.md
+└── LICENSE
