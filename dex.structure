@@ -1,0 +1,34 @@
+dex-lang/
+├── src/                    # Core source code
+│   ├── lexer/              # Tokenizer logic
+│   │   ├── lexer.h
+│   │   └── lexer.cpp
+│   ├── parser/             # Parser and AST logic
+│   │   ├── ast.h
+│   │   ├── parser.h
+│   │   └── parser.cpp
+│   ├── interpreter/        # Dex interpreter runtime
+│   │   ├── interpreter.h
+│   │   └── interpreter.cpp
+│   ├── runtime/            # Built-in Dex objects (e.g., WebServer)
+│   │   ├── webserver.h
+│   │   └── webserver.cpp
+│   ├── main.cpp            # CLI entry point (dex run file.d)
+│   └── utils.h             # Shared utilities
+│
+├── include/                # Public headers (if separated)
+│   └── dex.h               # Combined Dex API header
+│
+├── examples/               # Dex example files
+│   ├── hello_web.d         # Basic web server demo
+│   ├── routing.d           # Multiple route example
+│   └── control_structs.d   # if/while usage
+│
+├── tests/                  # Unit or integration tests
+│   ├── lexer_test.cpp
+│   ├── parser_test.cpp
+│   └── interpreter_test.cpp
+│
+├── CMakeLists.txt          # CMake build configuration
+├── README.md               # Project overview
+└── LICENSE                 # License file
