@@ -2,47 +2,60 @@
 #define DEX_LEXER_H
 
 #include <string>
-#include <unordered_map>
+#include <vector>
+#include <map> // For token types map
 
 namespace dex {
 
 enum class TokenType {
     IDENTIFIER,
-    KEYWORD,
-    STRING,
     NUMBER,
-    SYMBOL,
-    SEMICOLON,
-    NEWLINE,
-    END_OF_FILE
+    STRING,
+    KEYWORD,
+    SYMBOL, // +, -, *, /, =, ==, !=, <, >, <=, >=, (, ), {, }, [, ], ,, ., ;
+    END_OF_FILE,
+    NEWLINE, // For optional semicolons
+    UNKNOWN
 };
 
 struct Token {
     TokenType type;
     std::string value;
+    int line;
+    int column;
+
+    std::string toString() const; // For debugging
 };
 
 class Lexer {
 public:
     explicit Lexer(const std::string& source);
-
     Token getNextToken();
+    Token peekNextToken();
 
 private:
-    std::string src;
-    size_t pos;
-    size_t length;
+    std::string source;
+    size_t position;
+    int line;
+    int column;
+    Token next_token_buffer;
+    bool has_peeked;
 
-    char peek() const;
-    char advance();
+    char peekChar();
+    char consumeChar();
     void skipWhitespace();
-    void skipComment();
-    bool isAtEnd() const;
-    Token string();
-    Token number();
-    Token identifier();
+    void skipComments(); // <--- ADDED THIS DECLARATION
+    Token readIdentifierOrKeyword();
+    Token readNumber();
+    Token readString();
+    Token readSymbol();
 
-    static const std::unordered_map<std::string, TokenType> keywords;
+    static std::map<std::string, TokenType> keywords;
+    static std::map<char, TokenType> singleCharSymbols;
+    static std::map<std::string, TokenType> multiCharSymbols;
+
+    void initializeKeywords();
+    void initializeSymbols();
 };
 
 } // namespace dex

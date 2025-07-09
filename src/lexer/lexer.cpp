@@ -1,145 +1,264 @@
 #include "lexer.h"
-#include <cctype>
+#include <stdexcept>
+#include <cctype> // For isalpha, isdigit, isalnum
 
 namespace dex {
 
-// Define keywords here
-const std::unordered_map<std::string, TokenType> Lexer::keywords = {
-    {"func", TokenType::KEYWORD},
-    {"return", TokenType::KEYWORD},
-    {"if", TokenType::KEYWORD},
-    {"while", TokenType::KEYWORD}
-};
+// Initialize static maps
+std::map<std::string, TokenType> Lexer::keywords;
+std::map<char, TokenType> Lexer::singleCharSymbols;
+std::map<std::string, TokenType> Lexer::multiCharSymbols;
 
 Lexer::Lexer(const std::string& source)
-    : src(source), pos(0), length(source.length()) {}
-
-char Lexer::peek() const {
-    return pos < length ? src[pos] : '\0';
+    : source(source), position(0), line(1), column(1), has_peeked(false) {
+    initializeKeywords();
+    initializeSymbols();
 }
 
-char Lexer::advance() {
-    return pos < length ? src[pos++] : '\0';
+void Lexer::initializeKeywords() {
+    keywords["if"] = TokenType::KEYWORD;
+    keywords["else"] = TokenType::KEYWORD;
+    keywords["while"] = TokenType::KEYWORD;
+    keywords["return"] = TokenType::KEYWORD;
+    keywords["func"] = TokenType::KEYWORD; // For anonymous functions
+    // Add other keywords as needed
 }
 
-bool Lexer::isAtEnd() const {
-    return pos >= length;
+void Lexer::initializeSymbols() {
+    singleCharSymbols['+'] = TokenType::SYMBOL;
+    singleCharSymbols['-'] = TokenType::SYMBOL;
+    singleCharSymbols['*'] = TokenType::SYMBOL;
+    singleCharSymbols['/'] = TokenType::SYMBOL; // Keep '/' as a symbol for division
+    singleCharSymbols['='] = TokenType::SYMBOL;
+    singleCharSymbols['('] = TokenType::SYMBOL;
+    singleCharSymbols[')'] = TokenType::SYMBOL;
+    singleCharSymbols['{'] = TokenType::SYMBOL;
+    singleCharSymbols['}'] = TokenType::SYMBOL;
+    singleCharSymbols['['] = TokenType::SYMBOL;
+    singleCharSymbols[']'] = TokenType::SYMBOL;
+    singleCharSymbols[','] = TokenType::SYMBOL;
+    singleCharSymbols[';'] = TokenType::SYMBOL;
+    singleCharSymbols['.'] = TokenType::SYMBOL; // Add dot for member access
+
+    multiCharSymbols["=="] = TokenType::SYMBOL;
+    multiCharSymbols["!="] = TokenType::SYMBOL;
+    multiCharSymbols["<="] = TokenType::SYMBOL;
+    multiCharSymbols[">="] = TokenType::SYMBOL;
+    multiCharSymbols["<"] = TokenType::SYMBOL;
+    multiCharSymbols[">"] = TokenType::SYMBOL;
+    // Add other multi-character symbols
+}
+
+char Lexer::peekChar() {
+    if (position >= source.length()) {
+        return '\0';
+    }
+    return source[position];
+}
+
+char Lexer::consumeChar() {
+    if (position >= source.length()) {
+        return '\0';
+    }
+    char c = source[position++];
+    if (c == '\n') {
+        line++;
+        column = 1;
+    } else {
+        column++;
+    }
+    return c;
 }
 
 void Lexer::skipWhitespace() {
-    while (!isAtEnd() && std::isspace(peek()) && peek() != '\n') {
-        advance();
+    while (position < source.length() && std::isspace(peekChar()) && peekChar() != '\n') {
+        consumeChar();
     }
 }
 
-void Lexer::skipComment() {
-    if (peek() == '/') {
-        if ((pos + 1) < length) {
-            if (src[pos + 1] == '/') {
-                // single line comment
-                advance(); // consume first '/'
-                advance(); // consume second '/'
-                while (!isAtEnd() && peek() != '\n') advance();
-            } else if (src[pos + 1] == '*') {
-                // multi line comment
-                advance(); // consume first '/'
-                advance(); // consume '*'
-                while (!isAtEnd()) {
-                    if (peek() == '*' && (pos + 1) < length && src[pos + 1] == '/') {
-                        advance();
-                        advance();
-                        break;
-                    }
-                    advance();
-                }
+void Lexer::skipComments() {
+    while (true) {
+        // Check for single-line comment "//"
+        if (peekChar() == '/' && position + 1 < source.length() && source[position + 1] == '/') {
+            consumeChar(); // Consume first '/'
+            consumeChar(); // Consume second '/'
+            // Consume characters until newline or EOF
+            while (position < source.length() && peekChar() != '\n') {
+                consumeChar();
             }
+            // Do not consume newline here; let getNextToken handle it if it's the next token.
+            // This ensures NEWLINE tokens are still generated.
         }
-    }
-}
-
-Token Lexer::string() {
-    char quote = advance(); // Consume ' or "
-    std::string value;
-
-    while (!isAtEnd() && peek() != quote) {
-        if (peek() == '\\') {
-            advance(); // consume \
-            if (!isAtEnd()) {
-                char esc = advance();
-                switch (esc) {
-                    case 'n': value += '\n'; break;
-                    case 't': value += '\t'; break;
-                    case '\\': value += '\\'; break;
-                    case '\'': value += '\''; break;
-                    case '\"': value += '\"'; break;
-                    default: value += esc; break;
-                }
+        // Check for multi-line comment "/* ... */"
+        else if (peekChar() == '/' && position + 1 < source.length() && source[position + 1] == '*') {
+            consumeChar(); // Consume '/'
+            consumeChar(); // Consume '*'
+            // Consume characters until "*/" or EOF
+            while (position < source.length() && !(peekChar() == '*' && position + 1 < source.length() && source[position + 1] == '/')) {
+                consumeChar();
+            }
+            if (position + 1 < source.length() && peekChar() == '*' && source[position + 1] == '/') {
+                consumeChar(); // Consume '*'
+                consumeChar(); // Consume '/'
+            } else {
+                // Unclosed multi-line comment at EOF
+                throw std::runtime_error("Lexer error: Unclosed multi-line comment at line " + std::to_string(line) + ", column " + std::to_string(column));
             }
         } else {
-            value += advance();
+            // No more comments found
+            break;
+        }
+        // After skipping a comment, there might be more whitespace or another comment
+        skipWhitespace();
+    }
+}
+
+
+Token Lexer::readIdentifierOrKeyword() {
+    std::string value;
+    int startColumn = column;
+    while (position < source.length() && (std::isalnum(peekChar()) || peekChar() == '_')) {
+        value += consumeChar();
+    }
+
+    if (keywords.count(value)) {
+        return {keywords[value], value, line, startColumn};
+    }
+    return {TokenType::IDENTIFIER, value, line, startColumn};
+}
+
+Token Lexer::readNumber() {
+    std::string value;
+    int startColumn = column;
+    while (position < source.length() && std::isdigit(peekChar())) {
+        value += consumeChar();
+    }
+    if (peekChar() == '.') {
+        value += consumeChar(); // Consume '.'
+        while (position < source.length() && std::isdigit(peekChar())) {
+            value += consumeChar();
         }
     }
-    advance(); // consume closing quote
-    return {TokenType::STRING, value};
+    return {TokenType::NUMBER, value, line, startColumn};
 }
 
-Token Lexer::number() {
+Token Lexer::readString() {
     std::string value;
-    bool hasDot = false;
-    while (!isAtEnd() && (std::isdigit(peek()) || (!hasDot && peek() == '.'))) {
-        if (peek() == '.') hasDot = true;
-        value += advance();
+    int startColumn = column;
+    consumeChar(); // Consume opening quote '"'
+    while (position < source.length() && peekChar() != '"') {
+        if (peekChar() == '\\') { // Handle escape sequences
+            value += consumeChar(); // Consume '\'
+            if (position < source.length()) {
+                value += consumeChar(); // Consume escaped char
+            }
+        } else {
+            value += consumeChar();
+        }
     }
-    return {TokenType::NUMBER, value};
+    consumeChar(); // Consume closing quote '"'
+    return {TokenType::STRING, value, line, startColumn};
 }
 
-Token Lexer::identifier() {
-    std::string value;
-    while (!isAtEnd() && (std::isalnum(peek()) || peek() == '_')) {
-        value += advance();
+Token Lexer::readSymbol() {
+    int startColumn = column;
+    std::string twoCharSymbol = "";
+    if (position + 1 < source.length()) {
+        twoCharSymbol += peekChar();
+        twoCharSymbol += source[position + 1];
     }
 
-    auto it = keywords.find(value);
-    if (it != keywords.end()) {
-        return {it->second, value};
+    if (multiCharSymbols.count(twoCharSymbol)) {
+        consumeChar();
+        consumeChar();
+        return {multiCharSymbols[twoCharSymbol], twoCharSymbol, line, startColumn};
     }
-    return {TokenType::IDENTIFIER, value};
+
+    char singleChar = consumeChar();
+    if (singleCharSymbols.count(singleChar)) {
+        return {singleCharSymbols[singleChar], std::string(1, singleChar), line, startColumn};
+    }
+    throw std::runtime_error("Lexer error: Unknown symbol '" + std::string(1, singleChar) + "' at line " + std::to_string(line) + ", column " + std::to_string(startColumn));
 }
 
 Token Lexer::getNextToken() {
-    while (!isAtEnd()) {
-        skipWhitespace();
-        skipComment();
-
-        if (isAtEnd()) break;
-
-        char c = peek();
-
-        if (std::isalpha(c) || c == '_') return identifier();
-        if (std::isdigit(c)) return number();
-        if (c == '"' || c == '\'') return string();
-
-        if (c == '=' || c == '(' || c == ')' || c == '{' || c == '}' || c == ',' ||
-            c == '+' || c == '-' || c == '*' || c == '/') {
-            advance();
-            return {TokenType::SYMBOL, std::string(1, c)};
-        }
-
-        if (c == ';') {
-            advance();
-            return {TokenType::SEMICOLON, ";"};
-        }
-
-        if (c == '\n') {
-            advance();
-            return {TokenType::NEWLINE, "\\n"};
-        }
-
-        // Unknown character, skip it
-        advance();
+    if (has_peeked) {
+        has_peeked = false;
+        return next_token_buffer;
     }
 
-    return {TokenType::END_OF_FILE, ""};
+    // Loop to handle multiple comments/whitespace blocks
+    while (true) {
+        skipWhitespace(); // Skip spaces and tabs
+        skipComments();   // Skip comments
+        // After skipping, check again if there's more whitespace or comments
+        // This handles cases like `// comment\n   // another comment`
+        if (!std::isspace(peekChar()) && !(peekChar() == '/' && (source[position+1] == '/' || source[position+1] == '*'))) {
+            break; // No more whitespace or comments, proceed to tokenize
+        }
+        // If we found more whitespace or comments, the loop continues
+    }
+
+
+    if (position >= source.length()) {
+        return {TokenType::END_OF_FILE, "", line, column};
+    }
+
+    char c = peekChar();
+
+    if (c == '\n') {
+        consumeChar(); // Consume the newline
+        return {TokenType::NEWLINE, "\n", line - 1, column}; // Report original line
+    }
+
+    if (std::isalpha(c) || c == '_') {
+        return readIdentifierOrKeyword();
+    }
+    if (std::isdigit(c)) {
+        return readNumber();
+    }
+    if (c == '"') {
+        return readString();
+    }
+    // Check for symbols, including potential start of comments (which should have been skipped)
+    if (singleCharSymbols.count(c) || (position + 1 < source.length() && multiCharSymbols.count(std::string(1, c) + source[position+1]))) {
+        return readSymbol();
+    }
+
+    throw std::runtime_error("Lexer error: Unexpected character '" + std::string(1, c) + "' at line " + std::to_string(line) + ", column " + std::to_string(column));
+}
+
+Token Lexer::peekNextToken() {
+    if (!has_peeked) {
+        // Store current position and line/column
+        size_t original_position = position;
+        int original_line = line;
+        int original_column = column;
+
+        next_token_buffer = getNextToken(); // Get the next token normally
+        has_peeked = true;
+
+        // Restore position and line/column
+        position = original_position;
+        line = original_line;
+        column = original_column;
+    }
+    return next_token_buffer;
+}
+
+std::string Token::toString() const {
+    std::string type_str;
+    switch (type) {
+        case TokenType::IDENTIFIER: type_str = "IDENTIFIER"; break;
+        case TokenType::NUMBER: type_str = "NUMBER"; break;
+        case TokenType::STRING: type_str = "STRING"; break;
+        case TokenType::KEYWORD: type_str = "KEYWORD"; break;
+        case TokenType::SYMBOL: type_str = "SYMBOL"; break;
+        case TokenType::END_OF_FILE: type_str = "END_OF_FILE"; break;
+        case TokenType::NEWLINE: type_str = "NEWLINE"; break;
+        case TokenType::UNKNOWN: type_str = "UNKNOWN"; break;
+    }
+    return "Token(Type: " + type_str + ", Value: '" + value + "', Line: " + std::to_string(line) + ", Column: " + std::to_string(column) + ")";
 }
 
 } // namespace dex

@@ -50,7 +50,7 @@ bool MySQLDatabase::execute(const std::string& query) {
     }
 }
 
-Database::QueryResult MySQLDatabase::query(const std::string& query) {
+QueryResult MySQLDatabase::query(const std::string& query) {
     QueryResult results;
     try {
         std::unique_ptr<sql::Statement> stmt(conn->createStatement());

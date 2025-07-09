@@ -53,7 +53,7 @@ bool PostgresDatabase::execute(const std::string& query) {
     }
 }
 
-Database::QueryResult PostgresDatabase::query(const std::string& query) {
+QueryResult PostgresDatabase::query(const std::string& query) {
     QueryResult results;
     try {
         pqxx::work txn(*conn);

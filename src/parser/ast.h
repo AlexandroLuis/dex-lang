@@ -1,7 +1,6 @@
 // src/parser/ast.h
 #ifndef DEX_AST_H
 #define DEX_AST_H
-
 #include <string>
 #include <vector>
 #include <memory>
@@ -10,7 +9,6 @@ namespace dex {
 
 struct Expr;
 struct Stmt;
-
 using ExprPtr = std::shared_ptr<Expr>;
 using StmtPtr = std::shared_ptr<Stmt>;
 
@@ -35,6 +33,15 @@ struct VariableExpr : Expr {
     std::string name;
     VariableExpr(const std::string& n) : name(n) {}
 };
+
+// Member access expression: object.property
+struct MemberAccessExpr : Expr {
+    ExprPtr object;
+    std::string property;
+    MemberAccessExpr(ExprPtr obj, const std::string& prop)
+        : object(std::move(obj)), property(prop) {}
+};
+
 
 // Function call expressions: callee(args...)
 struct CallExpr : Expr {
@@ -80,12 +87,18 @@ struct IfStmt : Stmt {
     ExprPtr condition;
     StmtPtr thenBranch;
     StmtPtr elseBranch;  // optional
+
+    IfStmt(ExprPtr cond, StmtPtr then, StmtPtr else_branch = nullptr)
+        : condition(std::move(cond)), thenBranch(std::move(then)), elseBranch(std::move(else_branch)) {}
 };
 
 // While statement: while (cond) body
 struct WhileStmt : Stmt {
     ExprPtr condition;
     StmtPtr body;
+
+    WhileStmt(ExprPtr cond, StmtPtr b)
+        : condition(std::move(cond)), body(std::move(b)) {}
 };
 
 }  // namespace dex

@@ -34,10 +34,11 @@ private:
     ExprPtr parseExpression();
     ExprPtr parsePrimary();
     ExprPtr parseCall(ExprPtr callee);
+    ExprPtr parseCallOrMemberAccess(); // <--- ADDED DECLARATION HERE
 
     // Add helper parsing functions as needed
 };
 
-}  // namespace dex
+} // namespace dex
 
-#endif  // DEX_PARSER_H
+#endif // DEX_PARSER_H

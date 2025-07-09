@@ -1,6 +1,7 @@
 // src/runtime/sqlite_database.cpp
 #include "sqlite_database.h"
 #include <iostream>
+#include <cstring>
 
 namespace dex {
 
@@ -32,7 +33,7 @@ bool SQLiteDatabase::execute(const std::string& query) {
     return true;
 }
 
-Database::QueryResult SQLiteDatabase::query(const std::string& query) {
+QueryResult SQLiteDatabase::query(const std::string& query) {
     QueryResult results;
     sqlite3_stmt* stmt = nullptr;
 
